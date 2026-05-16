@@ -10,4 +10,6 @@ public class AuthResponse {
     private String fullName;
     private String roleType;
     private String message;
+    private String accessToken;
+    private String refreshToken;
 }

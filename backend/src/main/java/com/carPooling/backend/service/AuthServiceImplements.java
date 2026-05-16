@@ -1,49 +1,147 @@
 package com.carPooling.backend.service;
 
+import com.carPooling.backend.dto.GenricDTO;
 import com.carPooling.backend.dto.request.*;
 import com.carPooling.backend.dto.response.AuthResponse;
+import com.carPooling.backend.dto.response.CreatePasswordResponse;
+import com.carPooling.backend.entity.RefreshToken;
 import com.carPooling.backend.entity.User;
 import com.carPooling.backend.exception.UserAlreadyExistsException;
+import com.carPooling.backend.repository.RefreshTokenRepository;
 import com.carPooling.backend.repository.UserRepository;
 import com.carPooling.backend.security.JwtUtil;
-
+import com.carPooling.backend.utils.StringConstant;
 import lombok.RequiredArgsConstructor;
-
-import org.springframework.security.authentication.*;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImplements implements AuthService {
 
     private final UserRepository userRepository;
+
     private final PasswordEncoder passwordEncoder;
+
     private final JwtUtil jwtUtil;
+
     private final AuthenticationManager authenticationManager;
+
+    private final RefreshTokenRepository refreshTokenRepository;
+
+
+    @Override
+    public GenricDTO<CreatePasswordResponse> createPassword(
+            CreatePasswordRequest createPasswordRequest) {
+
+        // Email regex
+        String emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$";
+
+        // Password regex
+        // Minimum 8 chars, 1 uppercase, 1 lowercase,
+        // 1 number, 1 special character
+        String passwordRegex =
+                "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$";
+
+        // Validate email
+        if (!createPasswordRequest.getEmail().matches(emailRegex)) {
+
+            return new GenricDTO<>(
+                    StringConstant.INVALID_REQUEST,
+                    "Invalid email format",
+                    null
+            );
+        }
+
+        // Validate password regex
+        if (!createPasswordRequest.getPassword().matches(passwordRegex)) {
+
+            return new GenricDTO<>(
+                    StringConstant.INVALID_REQUEST,
+                    "Password must contain minimum 8 characters, "
+                            + "1 uppercase, 1 lowercase, "
+                            + "1 number and 1 special character",
+                    null
+            );
+        }
+
+        // Validate confirm password
+        if (!createPasswordRequest.getPassword()
+                .equals(createPasswordRequest.getConfirmPassword())) {
+
+            return new GenricDTO<>(
+                    StringConstant.INVALID_REQUEST,
+                    "Password and confirm password do not match",
+                    null
+            );
+        }
+
+        Optional<User> optionalUser =
+                userRepository.findByEmail(createPasswordRequest.getEmail());
+
+        User user;
+
+        if (optionalUser.isEmpty()) {
+
+            user = new User();
+            user.setEmail(createPasswordRequest.getEmail());
+
+        } else {
+
+            user = optionalUser.get();
+        }
+
+        user.setPassword(
+                passwordEncoder.encode(createPasswordRequest.getPassword()));
+
+        userRepository.save(user);
+
+        CreatePasswordResponse response =
+                new CreatePasswordResponse();
+
+        response.setAccessToken(
+                jwtUtil.generateAccessToken(user.getEmail()));
+
+        response.setRefreshToken(
+                jwtUtil.generateRefreshToken(user.getEmail()));
+
+        return new GenricDTO<>(
+                StringConstant.SUCCESS,
+                "Password created successfully",
+                response
+        );
+    }
+
 
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest req) {
 
-        // 1. Check duplicate email
         if (userRepository.existsByEmail(req.getEmail())) {
-            throw new UserAlreadyExistsException("Email already registered");
+            throw new UserAlreadyExistsException(
+                    "Email already registered");
         }
 
-        // 2. Check duplicate phone number
-        if (userRepository.existsByPhoneNumber(req.getPhoneNumber())) {
-            throw new UserAlreadyExistsException("Phone number already registered");
+        if (userRepository.existsByPhoneNumber(
+                req.getPhoneNumber())) {
+
+            throw new UserAlreadyExistsException(
+                    "Phone number already registered");
         }
 
-        // 3. Create user entity
         User user = User.builder()
                 .name(req.getFullName())
                 .email(req.getEmail())
                 .phoneNumber(req.getPhoneNumber())
-                .password(passwordEncoder.encode(req.getPassword()))
+                .password(passwordEncoder.encode(
+                        req.getPassword()))
                 .gender(req.getGender())
                 .role(req.getRole())
                 .profilePicture(req.getProfilePicture())
@@ -51,8 +149,26 @@ public class AuthServiceImplements implements AuthService {
 
         userRepository.save(user);
 
+        // Generate Tokens
+        String accessToken =
+                jwtUtil.generateAccessToken(user.getEmail());
+
+        String refreshTokenString =
+                jwtUtil.generateRefreshToken(user.getEmail());
+
+        // Save Refresh Token
+        RefreshToken refreshToken = RefreshToken.builder()
+                .token(refreshTokenString)
+                .expiryDate(LocalDateTime.now().plusDays(7))
+                .revoked(false)
+                .user(user)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
+
         return AuthResponse.builder()
-                .token(jwtUtil.generateToken(user.getEmail()))
+                .accessToken(accessToken)
+                .refreshToken(refreshTokenString)
                 .tokenType("Bearer")
                 .email(user.getEmail())
                 .fullName(user.getName())
@@ -62,6 +178,7 @@ public class AuthServiceImplements implements AuthService {
     }
 
     @Override
+    @Transactional
     public AuthResponse login(LoginRequest req) {
 
         authenticationManager.authenticate(
@@ -71,17 +188,121 @@ public class AuthServiceImplements implements AuthService {
                 )
         );
 
-        User user = userRepository.findByEmail(req.getEmail())
+        User user = userRepository.findByEmail(
+                        req.getEmail())
                 .orElseThrow(() ->
-                        new UsernameNotFoundException("User not found"));
+                        new UsernameNotFoundException(
+                                "User not found"));
+
+        // Generate tokens
+        String accessToken =
+                jwtUtil.generateAccessToken(user.getEmail());
+
+        String refreshTokenString =
+                jwtUtil.generateRefreshToken(user.getEmail());
+
+        // Save refresh token
+        RefreshToken refreshToken = RefreshToken.builder()
+                .token(refreshTokenString)
+                .expiryDate(LocalDateTime.now().plusDays(7))
+                .revoked(false)
+                .user(user)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
 
         return AuthResponse.builder()
-                .token(jwtUtil.generateToken(user.getEmail()))
+                .accessToken(accessToken)
+                .refreshToken(refreshTokenString)
                 .tokenType("Bearer")
                 .email(user.getEmail())
                 .fullName(user.getName())
                 .roleType(user.getRole().name())
                 .message("Login successful!")
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse refreshToken(
+            RefreshTokenRequest request
+    ) {
+
+        String refreshTokenString =
+                request.getRefreshToken();
+
+        // Find token in DB
+        RefreshToken storedToken =
+                refreshTokenRepository.findByToken(
+                        refreshTokenString
+                ).orElseThrow(() ->
+                        new RuntimeException(
+                                "Refresh token not found"));
+
+        // Check revoked
+        if (storedToken.isRevoked()) {
+            throw new RuntimeException(
+                    "Refresh token revoked");
+        }
+
+        // Check expiry
+        if (storedToken.getExpiryDate()
+                .isBefore(LocalDateTime.now())) {
+
+            throw new RuntimeException(
+                    "Refresh token expired");
+        }
+
+        // Validate JWT
+        String email =
+                jwtUtil.extractEmail(refreshTokenString);
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new UsernameNotFoundException(
+                                "User not found"));
+
+        if (!jwtUtil.isTokenValid(
+                refreshTokenString,
+                user.getEmail())) {
+
+            throw new RuntimeException(
+                    "Invalid refresh token");
+        }
+
+        // Generate new access token
+        String newAccessToken =
+                jwtUtil.generateAccessToken(
+                        user.getEmail());
+
+        return AuthResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(refreshTokenString)
+                .tokenType("Bearer")
+                .email(user.getEmail())
+                .fullName(user.getName())
+                .roleType(user.getRole().name())
+                .message("Token refreshed successfully")
+                .build();
+    }
+
+
+    @Override
+    @Transactional
+    public void logout(LogoutRequest request) {
+
+        String refreshTokenString =
+                request.getRefreshToken();
+
+        RefreshToken token =
+                refreshTokenRepository.findByToken(
+                        refreshTokenString
+                ).orElseThrow(() ->
+                        new RuntimeException(
+                                "Refresh token not found"));
+
+        token.setRevoked(true);
+
+        refreshTokenRepository.save(token);
     }
 }

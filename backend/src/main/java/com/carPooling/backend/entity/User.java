@@ -23,36 +23,35 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-
-    @Column(nullable = false, length = 100)
+    @Column(nullable = true, length = 100)
     private String name;
-
 
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-
-    @Column(nullable = false, unique = true, length = 20)
+    @Column(nullable = true, unique = true, length = 20)
     private String phoneNumber;
 
     @Column(nullable = false)
     private String password;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = true)
     private Gender gender;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = true)
     private Role role;
 
     @Column(columnDefinition = "LONGTEXT")
     private String profilePicture;
 
     @CreationTimestamp
-    @Column(updatable = false)
+    @Column(updatable = true)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    private LocalDateTime deletedAt;
 }
