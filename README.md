@@ -1,6 +1,3 @@
-Organized `README.md` formatting without changing content. The file content is preserved; only layout and Markdown structure were improved.
-
-```markdown
 # Car Pooling Backend Authentication API
 
 ## Sample cURL Requests
@@ -334,10 +331,184 @@ Continue Without Login
 
 ---
 
+# Refresh Token API Documentation
+
+## Base URL
+
+```text
+http://localhost:8080/api/auth
+```
+
+---
+
+## Refresh Token Endpoint
+
+**Endpoint**
+
+```http
+POST /refresh_token
+```
+
+---
+
+### Request Headers
+
+| Key | Value |
+| --- | ----- |
+| Content-Type | application/json |
+
+---
+
+### Request Body
+
+```json
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+}
+```
+
+---
+
+### Success Response
+
+**HTTP Status**
+
+```http
+202 Accepted
+```
+
+**Response Body**
+
+```json
+{
+  "status": "SUCCESS",
+  "message": "Token refreshed successfully",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+  }
+}
+```
+
+---
+
+### Invalid Refresh Token
+
+**HTTP Status**
+
+```http
+401 Unauthorized
+```
+
+**Response Body**
+
+```json
+{
+  "status": "UNAUTHORIZED",
+  "message": "Invalid or expired refresh token",
+  "data": null
+}
+```
+
+---
+
+### Refresh Token Expired
+
+**HTTP Status**
+
+```http
+401 Unauthorized
+```
+
+**Response Body**
+
+```json
+{
+  "status": "UNAUTHORIZED",
+  "message": "Refresh token has expired. Please login again",
+  "data": null
+}
+```
+
+---
+
+### Missing Refresh Token
+
+**HTTP Status**
+
+```http
+400 Bad Request
+```
+
+**Response Body**
+
+```json
+{
+  "status": "INVALID_REQUEST",
+  "message": "Validation failed",
+  "data": [
+    "Refresh token is required"
+  ]
+}
+```
+
+---
+
+### Refresh Token Not Found in Database
+
+**HTTP Status**
+
+```http
+401 Unauthorized
+```
+
+**Response Body**
+
+```json
+{
+  "status": "UNAUTHORIZED",
+  "message": "Refresh token not found. Please login again",
+  "data": null
+}
+```
+
+---
+
+### Internal Server Error
+
+**HTTP Status**
+
+```http
+500 Internal Server Error
+```
+
+**Response Body**
+
+```json
+{
+  "status": "FAILED",
+  "message": "Something went wrong",
+  "data": null
+}
+```
+
+---
+
+### Sample cURL Request
+
+```bash
+curl --location 'http://localhost:8080/api/auth/refresh_token' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+  "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+}'
+```
+
+---
+
 ## Token Expiry
 
 | Token Type    | Expiry     |
 | ------------- | ---------- |
 | Access Token  | 15 Minutes |
 | Refresh Token | 7 Days     |
-```

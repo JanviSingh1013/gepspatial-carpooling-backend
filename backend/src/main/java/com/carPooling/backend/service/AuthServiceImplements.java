@@ -5,6 +5,7 @@ import com.carPooling.backend.dto.request.*;
 import com.carPooling.backend.dto.response.AuthResponse;
 import com.carPooling.backend.dto.response.CreatePasswordResponse;
 import com.carPooling.backend.dto.response.LogInResponse;
+import com.carPooling.backend.dto.response.RefreshTokenResponse;
 import com.carPooling.backend.entity.RefreshToken;
 import com.carPooling.backend.entity.User;
 import com.carPooling.backend.exception.UserAlreadyExistsException;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.ValidationUtils;
 
+import javax.swing.text.html.Option;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -229,66 +231,96 @@ public class AuthServiceImplements implements AuthService {
 
     @Override
     @Transactional
-    public AuthResponse refreshToken(
+    public GenricDTO<RefreshTokenResponse> refreshToken(
             RefreshTokenRequest request
     ) {
 
         String refreshTokenString =
                 request.getRefreshToken();
 
-        // Find token in DB
-        RefreshToken storedToken =
+        Optional<RefreshToken> optionalRefreshToken =
                 refreshTokenRepository.findByToken(
                         refreshTokenString
-                ).orElseThrow(() ->
-                        new RuntimeException(
-                                "Refresh token not found"));
+                );
 
-        // Check revoked
-        if (storedToken.isRevoked()) {
-            throw new RuntimeException(
-                    "Refresh token revoked");
+        // Common unauthorized response
+        GenricDTO<RefreshTokenResponse> unauthorizedResponse =
+                new GenricDTO<>(
+                        StringConstant.UNAUTHORIZED,
+                        "Unauthorized Access - try to login/register first",
+                        null
+                );
+
+        // Token not found
+        if (optionalRefreshToken.isEmpty()) {
+            return unauthorizedResponse;
         }
 
-        // Check expiry
+        RefreshToken storedToken =
+                optionalRefreshToken.get();
+
+        // Token revoked
+        if (storedToken.isRevoked()) {
+            return unauthorizedResponse;
+        }
+
+        // Token expired
         if (storedToken.getExpiryDate()
                 .isBefore(LocalDateTime.now())) {
 
-            throw new RuntimeException(
-                    "Refresh token expired");
+            return unauthorizedResponse;
         }
 
+        // Extract email from JWT
+        String email = jwtUtil.extractEmail(refreshTokenString);
+
+        Optional<User> optionaluser = userRepository.findByEmail(email);
+        if(optionaluser.isEmpty()){
+            return unauthorizedResponse;
+        }
+
+         User user = optionaluser.get();
+
+
         // Validate JWT
-        String email =
-                jwtUtil.extractEmail(refreshTokenString);
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new UsernameNotFoundException(
-                                "User not found"));
-
-        if (!jwtUtil.isTokenValid(
-                refreshTokenString,
-                user.getEmail())) {
-
-            throw new RuntimeException(
-                    "Invalid refresh token");
+        if (!jwtUtil.isTokenValid(refreshTokenString, user.getEmail())) {
+            return unauthorizedResponse;
         }
 
         // Generate new access token
+        // Generate new access token
         String newAccessToken =
-                jwtUtil.generateAccessToken(
-                        user.getEmail());
+                jwtUtil.generateAccessToken(user.getEmail());
 
-        return AuthResponse.builder()
-                .accessToken(newAccessToken)
-                .refreshToken(refreshTokenString)
-                .tokenType("Bearer")
-                .email(user.getEmail())
-                .fullName(user.getName())
-                .roleType(user.getRole().name())
-                .message("Token refreshed successfully")
+        // Generate new refresh token
+        String refreshTokenValue =
+                jwtUtil.generateRefreshToken(user.getEmail());
+
+        // Delete old refresh token
+        refreshTokenRepository.deleteByUser(user);
+
+        // Save new refresh token
+        RefreshToken refreshToken = RefreshToken.builder()
+                .token(refreshTokenValue)
+                .expiryDate(LocalDateTime.now().plusDays(7))
+                .revoked(false)
+                .user(user)
                 .build();
+
+        refreshTokenRepository.save(refreshToken);
+
+        // Response
+        RefreshTokenResponse response =
+                new RefreshTokenResponse();
+
+        response.setAccessToken(newAccessToken);
+        response.setRefreshToken(refreshTokenValue);
+
+        return new GenricDTO<>(
+                StringConstant.SUCCESS,
+                "Token refreshed successfully",
+                response
+        );
     }
 
 
