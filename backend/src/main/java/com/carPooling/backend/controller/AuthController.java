@@ -115,6 +115,36 @@ public class AuthController {
     }
 
 
+    @PostMapping("/logout")
+    public ResponseEntity<GenricDTO<Void>> logout(
+            @Valid @RequestBody LogoutRequest request
+    ) {
+
+        GenricDTO<Void> response =
+                authService.logout(request);
+
+        if (StringConstant.SUCCESS
+                .equalsIgnoreCase(response.getStatus())) {
+
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(response);
+
+        } else if (StringConstant.UNAUTHORIZED
+                .equalsIgnoreCase(response.getStatus())) {
+
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(response);
+
+        } else {
+
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(response);
+        }
+    }
+
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
             @Valid @RequestBody RegisterRequest request
@@ -123,17 +153,4 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(res); // 201
     }
 
-
-
-
-
-    @PostMapping("/logout")
-    public ResponseEntity<String> logout(
-            @RequestBody LogoutRequest request
-    ) {
-
-        authService.logout(request);
-
-        return ResponseEntity.ok("Logout successful");
-    }
 }

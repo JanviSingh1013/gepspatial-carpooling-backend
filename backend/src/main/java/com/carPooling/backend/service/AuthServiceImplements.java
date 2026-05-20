@@ -13,18 +13,13 @@ import com.carPooling.backend.repository.RefreshTokenRepository;
 import com.carPooling.backend.repository.UserRepository;
 import com.carPooling.backend.security.JwtUtil;
 import com.carPooling.backend.utils.StringConstant;
-import com.carPooling.backend.utils.ValidationUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.validation.ValidationUtils;
 
-import javax.swing.text.html.Option;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -44,22 +39,14 @@ public class AuthServiceImplements implements AuthService {
 
 
     @Override
-    public GenricDTO<CreatePasswordResponse> createPassword(
-            CreatePasswordRequest request
-    ) {
+    public GenricDTO<CreatePasswordResponse> createPassword(CreatePasswordRequest request) {
 
-        if (!request.getPassword()
-                .equals(request.getConfirmPassword())) {
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
 
-            return new GenricDTO<>(
-                    StringConstant.INVALID_REQUEST,
-                    "Password and confirm password do not match",
-                    null
-            );
+            return new GenricDTO<>(StringConstant.INVALID_REQUEST, "Password and confirm password do not match", null);
         }
 
-        Optional<User> optionalUser =
-                userRepository.findByEmail(request.getEmail());
+        Optional<User> optionalUser = userRepository.findByEmail(request.getEmail());
 
         User user;
 
@@ -73,42 +60,27 @@ public class AuthServiceImplements implements AuthService {
             user = optionalUser.get();
         }
 
-        user.setPassword(
-                passwordEncoder.encode(request.getPassword())
-        );
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
 
         userRepository.save(user);
 
         refreshTokenRepository.deleteByUser(user);
 
-        String accessToken =
-                jwtUtil.generateAccessToken(user.getEmail());
+        String accessToken = jwtUtil.generateAccessToken(user.getEmail());
 
-        String refreshTokenValue =
-                jwtUtil.generateRefreshToken(user.getEmail());
+        String refreshTokenValue = jwtUtil.generateRefreshToken(user.getEmail());
 
-        RefreshToken refreshToken = RefreshToken.builder()
-                .token(refreshTokenValue)
-                .expiryDate(LocalDateTime.now().plusDays(7))
-                .revoked(false)
-                .user(user)
-                .build();
+        RefreshToken refreshToken = RefreshToken.builder().token(refreshTokenValue).expiryDate(LocalDateTime.now().plusDays(7)).revoked(false).user(user).build();
 
         refreshTokenRepository.save(refreshToken);
 
-        CreatePasswordResponse response =
-                new CreatePasswordResponse();
+        CreatePasswordResponse response = new CreatePasswordResponse();
 
         response.setAccessToken(accessToken);
         response.setRefreshToken(refreshTokenValue);
 
-        return new GenricDTO<>(
-                StringConstant.SUCCESS,
-                "Password created successfully",
-                response
-        );
+        return new GenricDTO<>(StringConstant.SUCCESS, "Password created successfully", response);
     }
-
 
 
     @Override
@@ -116,44 +88,25 @@ public class AuthServiceImplements implements AuthService {
     public GenricDTO<LogInResponse> login(LoginRequest req) {
 
         Optional<User> optionalUser = userRepository.findByEmail(req.getEmail());
-        if(optionalUser.isEmpty()){
-            return new GenricDTO<>(
-                    StringConstant.UNAUTHORIZED,
-                    "You haven't registered yet, please register first",
-                    null
-            );
+        if (optionalUser.isEmpty()) {
+            return new GenricDTO<>(StringConstant.UNAUTHORIZED, "You haven't registered yet, please register first", null);
         }
 
         User user = optionalUser.get();
 
-        boolean isPasswordCorrect =
-                passwordEncoder.matches(
-                        req.getPassword(),
-                        user.getPassword()
-                );
+        boolean isPasswordCorrect = passwordEncoder.matches(req.getPassword(), user.getPassword());
 
-        if(!isPasswordCorrect){
-            return  new GenricDTO<>(
-                    StringConstant.INVALID_REQUEST,
-                    "Password is incorrect",
-                    null
-            );
+        if (!isPasswordCorrect) {
+            return new GenricDTO<>(StringConstant.INVALID_REQUEST, "Password is incorrect", null);
         }
 
         refreshTokenRepository.deleteByUser(user);
 
-        String accessToken =
-                jwtUtil.generateAccessToken(user.getEmail());
+        String accessToken = jwtUtil.generateAccessToken(user.getEmail());
 
-        String refreshTokenValue =
-                jwtUtil.generateRefreshToken(user.getEmail());
+        String refreshTokenValue = jwtUtil.generateRefreshToken(user.getEmail());
 
-        RefreshToken refreshToken = RefreshToken.builder()
-                .token(refreshTokenValue)
-                .expiryDate(LocalDateTime.now().plusDays(7))
-                .revoked(false)
-                .user(user)
-                .build();
+        RefreshToken refreshToken = RefreshToken.builder().token(refreshTokenValue).expiryDate(LocalDateTime.now().plusDays(7)).revoked(false).user(user).build();
 
         refreshTokenRepository.save(refreshToken);
 
@@ -163,43 +116,27 @@ public class AuthServiceImplements implements AuthService {
         response.setUser(user);
 
 
-        return new GenricDTO<>(
-                StringConstant.SUCCESS,
-                "Login successful",
-                response
-        );
+        return new GenricDTO<>(StringConstant.SUCCESS, "Login successful", response);
     }
 
 
     @Override
     @Transactional
-    public GenricDTO<RefreshTokenResponse> refreshToken(
-            RefreshTokenRequest request
-    ) {
+    public GenricDTO<RefreshTokenResponse> refreshToken(RefreshTokenRequest request) {
 
-        String refreshTokenString =
-                request.getRefreshToken();
+        String refreshTokenString = request.getRefreshToken();
 
-        Optional<RefreshToken> optionalRefreshToken =
-                refreshTokenRepository.findByToken(
-                        refreshTokenString
-                );
+        Optional<RefreshToken> optionalRefreshToken = refreshTokenRepository.findByToken(refreshTokenString);
 
         // Common unauthorized response
-        GenricDTO<RefreshTokenResponse> unauthorizedResponse =
-                new GenricDTO<>(
-                        StringConstant.UNAUTHORIZED,
-                        "Unauthorized Access - try to login/register first",
-                        null
-                );
+        GenricDTO<RefreshTokenResponse> unauthorizedResponse = new GenricDTO<>(StringConstant.UNAUTHORIZED, "Unauthorized Access - try to login/register first", null);
 
         // Token not found
         if (optionalRefreshToken.isEmpty()) {
             return unauthorizedResponse;
         }
 
-        RefreshToken storedToken =
-                optionalRefreshToken.get();
+        RefreshToken storedToken = optionalRefreshToken.get();
 
         // Token revoked
         if (storedToken.isRevoked()) {
@@ -207,8 +144,7 @@ public class AuthServiceImplements implements AuthService {
         }
 
         // Token expired
-        if (storedToken.getExpiryDate()
-                .isBefore(LocalDateTime.now())) {
+        if (storedToken.getExpiryDate().isBefore(LocalDateTime.now())) {
 
             return unauthorizedResponse;
         }
@@ -217,7 +153,7 @@ public class AuthServiceImplements implements AuthService {
         String email = jwtUtil.extractEmail(refreshTokenString);
 
         Optional<User> optionaluser = userRepository.findByEmail(email);
-        if(optionaluser.isEmpty()){
+        if (optionaluser.isEmpty()) {
             return unauthorizedResponse;
         }
 
@@ -231,38 +167,26 @@ public class AuthServiceImplements implements AuthService {
 
         // Generate new access token
         // Generate new access token
-        String newAccessToken =
-                jwtUtil.generateAccessToken(user.getEmail());
+        String newAccessToken = jwtUtil.generateAccessToken(user.getEmail());
 
         // Generate new refresh token
-        String refreshTokenValue =
-                jwtUtil.generateRefreshToken(user.getEmail());
+        String refreshTokenValue = jwtUtil.generateRefreshToken(user.getEmail());
 
         // Delete old refresh token
         refreshTokenRepository.deleteByUser(user);
 
         // Save new refresh token
-        RefreshToken refreshToken = RefreshToken.builder()
-                .token(refreshTokenValue)
-                .expiryDate(LocalDateTime.now().plusDays(7))
-                .revoked(false)
-                .user(user)
-                .build();
+        RefreshToken refreshToken = RefreshToken.builder().token(refreshTokenValue).expiryDate(LocalDateTime.now().plusDays(7)).revoked(false).user(user).build();
 
         refreshTokenRepository.save(refreshToken);
 
         // Response
-        RefreshTokenResponse response =
-                new RefreshTokenResponse();
+        RefreshTokenResponse response = new RefreshTokenResponse();
 
         response.setAccessToken(newAccessToken);
         response.setRefreshToken(refreshTokenValue);
 
-        return new GenricDTO<>(
-                StringConstant.SUCCESS,
-                "Token refreshed successfully",
-                response
-        );
+        return new GenricDTO<>(StringConstant.SUCCESS, "Token refreshed successfully", response);
     }
 
     @Override
@@ -270,78 +194,79 @@ public class AuthServiceImplements implements AuthService {
     public AuthResponse register(RegisterRequest req) {
 
         if (userRepository.existsByEmail(req.getEmail())) {
-            throw new UserAlreadyExistsException(
-                    "Email already registered");
+            throw new UserAlreadyExistsException("Email already registered");
         }
 
-        if (userRepository.existsByPhoneNumber(
-                req.getPhoneNumber())) {
+        if (userRepository.existsByPhoneNumber(req.getPhoneNumber())) {
 
-            throw new UserAlreadyExistsException(
-                    "Phone number already registered");
+            throw new UserAlreadyExistsException("Phone number already registered");
         }
 
-        User user = User.builder()
-                .name(req.getFullName())
-                .email(req.getEmail())
-                .phoneNumber(req.getPhoneNumber())
-                .password(passwordEncoder.encode(
-                        req.getPassword()))
-                .gender(req.getGender())
-                .role(req.getRole())
-                .profilePicture(req.getProfilePicture())
-                .build();
+        User user = User.builder().name(req.getFullName()).email(req.getEmail()).phoneNumber(req.getPhoneNumber()).password(passwordEncoder.encode(req.getPassword())).gender(req.getGender()).role(req.getRole()).profilePicture(req.getProfilePicture()).build();
 
         userRepository.save(user);
 
         // Generate Tokens
-        String accessToken =
-                jwtUtil.generateAccessToken(user.getEmail());
+        String accessToken = jwtUtil.generateAccessToken(user.getEmail());
 
-        String refreshTokenString =
-                jwtUtil.generateRefreshToken(user.getEmail());
+        String refreshTokenString = jwtUtil.generateRefreshToken(user.getEmail());
 
         // Save Refresh Token
-        RefreshToken refreshToken = RefreshToken.builder()
-                .token(refreshTokenString)
-                .expiryDate(LocalDateTime.now().plusDays(7))
-                .revoked(false)
-                .user(user)
-                .build();
+        RefreshToken refreshToken = RefreshToken.builder().token(refreshTokenString).expiryDate(LocalDateTime.now().plusDays(7)).revoked(false).user(user).build();
 
         refreshTokenRepository.save(refreshToken);
 
-        return AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshTokenString)
-                .tokenType("Bearer")
-                .email(user.getEmail())
-                .fullName(user.getName())
-                .roleType(user.getRole().name())
-                .message("Registration successful!")
-                .build();
+        return AuthResponse.builder().accessToken(accessToken).refreshToken(refreshTokenString).tokenType("Bearer").email(user.getEmail()).fullName(user.getName()).roleType(user.getRole().name()).message("Registration successful!").build();
     }
-
-
-
 
 
     @Override
     @Transactional
-    public void logout(LogoutRequest request) {
+    public GenricDTO<Void> logout(LogoutRequest request) {
 
-        String refreshTokenString =
-                request.getRefreshToken();
+        try {
 
-        RefreshToken token =
-                refreshTokenRepository.findByToken(
-                        refreshTokenString
-                ).orElseThrow(() ->
-                        new RuntimeException(
-                                "Refresh token not found"));
+            String refreshTokenString =
+                    request.getRefreshToken();
 
-        token.setRevoked(true);
+            Optional<RefreshToken> optionalToken =
+                    refreshTokenRepository.findByToken(
+                            refreshTokenString
+                    );
 
-        refreshTokenRepository.save(token);
+            // Token not found
+            if (optionalToken.isEmpty()) {
+
+                return new GenricDTO<>(
+                        StringConstant.UNAUTHORIZED,
+                        "Unauthorized Access - try to login/register first",
+                        null
+                );
+            }
+
+            RefreshToken refreshToken =
+                    optionalToken.get();
+
+            // Delete refresh token
+            refreshTokenRepository.deleteById(
+                    refreshToken.getId()
+            );
+
+            // Success response
+            return new GenricDTO<>(
+                    StringConstant.SUCCESS,
+                    "Logout successful",
+                    null
+            );
+
+        } catch (Exception e) {
+
+            // Failure response
+            return new GenricDTO<>(
+                    StringConstant.FAILED,
+                    "Something went wrong during, please try again",
+                    null
+            );
+        }
     }
 }

@@ -25,6 +25,14 @@ curl --location 'http://localhost:8089/api/auth/password' \
     "password": "Google@2026",
     "confirm_password": "Google@2026"
 }'
+
+
+
+curl --location 'http://localhost:8089/api/auth/logout' \
+--header 'Content-Type: application/json' \
+--data '{
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtYWluQGdtYWlsLmNvbSIsImlhdCI6MTc3OTMxNDcwNiwiZXhwIjoxNzc5OTE5NTA2fQ.u0puPU3BNQ7s2LgPDy9Ql-VgjETEXHxKnPhZEV9fMXs"
+}'
 ```
 
 ---

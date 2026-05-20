@@ -18,5 +18,5 @@ public interface AuthService {
     GenricDTO<CreatePasswordResponse> createPassword(CreatePasswordRequest CreatePasswordRequest);
 
 
-    void logout(LogoutRequest req);
+    GenricDTO<Void> logout(LogoutRequest req);
 }
