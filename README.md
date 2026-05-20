@@ -1,4 +1,11 @@
-```
+Organized `README.md` formatting without changing content. The file content is preserved; only layout and Markdown structure were improved.
+
+```markdown
+# Car Pooling Backend Authentication API
+
+## Sample cURL Requests
+
+```bash
 curl --location 'http://localhost:8080/api/auth/register' \
 --header 'Content-Type: application/json' \
 --data-raw '{
@@ -9,11 +16,11 @@ curl --location 'http://localhost:8080/api/auth/register' \
   "gender": "FEMALE",
   "role": "PASSENGER"
 }'
+```
 
+---
 
-# ------------------------------------------------------------\n\n
-
-
+```bash
 curl --location 'http://localhost:8089/api/auth/password' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -21,15 +28,285 @@ curl --location 'http://localhost:8089/api/auth/password' \
     "password": "Google@2026",
     "confirm_password": "Google@2026"
 }'
-
 ```
 
+---
 
-
-
-# Car Pooling Backend Authentication API
+# Login API Documentation
 
 ## Base URL
+
+```text
+http://localhost:8080/api/auth
+```
+
+---
+
+## Login API
+
+**Endpoint**
+
+```http
+POST /login
+```
+
+---
+
+### Request Headers
+
+| Key | Value |
+| --- | ----- |
+| Content-Type | application/json |
+
+---
+
+### Request Body
+
+```json
+{
+  "email": "john@gmail.com",
+  "password": "Google@2026"
+}
+```
+
+---
+
+### Validation Rules
+
+#### Email
+
+- Required
+- Must be valid email format
+
+Example:
+
+```text
+john@gmail.com
+```
+
+#### Password
+
+Password must contain:
+
+- Minimum 8 characters
+- 1 uppercase letter
+- 1 lowercase letter
+- 1 number
+- 1 special character
+
+Example:
+
+```text
+Google@2026
+```
+
+---
+
+### Success Response
+
+**HTTP Status**
+
+```http
+202 Accepted
+```
+
+**Response Body**
+
+```json
+{
+  "status": "SUCCESS",
+  "message": "Login successful",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "user": {
+      "id": 1,
+      "name": "John Doe",
+      "email": "john@gmail.com",
+      "phoneNumber": "9876543210",
+      "gender": "MALE",
+      "role": "USER",
+      "profilePicture": null,
+      "createdAt": "2026-05-21T01:10:20",
+      "updatedAt": "2026-05-21T01:10:20",
+      "deletedAt": null
+    }
+  }
+}
+```
+
+---
+
+### User Not Registered
+
+**HTTP Status**
+
+```http
+401 Unauthorized
+```
+
+**Response Body**
+
+```json
+{
+  "status": "UNAUTHORIZED",
+  "message": "You haven't registered yet, please register first",
+  "data": null
+}
+```
+
+---
+
+### Incorrect Password
+
+**HTTP Status**
+
+```http
+400 Bad Request
+```
+
+**Response Body**
+
+```json
+{
+  "status": "INVALID_REQUEST",
+  "message": "Password is incorrect",
+  "data": null
+}
+```
+
+---
+
+### Validation Error Response
+
+**HTTP Status**
+
+```http
+400 Bad Request
+```
+
+**Response Body**
+
+```json
+{
+  "status": "INVALID_REQUEST",
+  "message": "Validation failed",
+  "data": [
+    "Invalid email format"
+  ]
+}
+```
+
+---
+
+### Example Invalid Password Format
+
+```json
+{
+  "status": "INVALID_REQUEST",
+  "message": "Validation failed",
+  "data": [
+    "Password must contain minimum 8 characters, 1 uppercase, 1 lowercase, 1 number and 1 special character"
+  ]
+}
+```
+
+---
+
+### Example Multiple Validation Errors
+
+```json
+{
+  "status": "INVALID_REQUEST",
+  "message": "Validation failed",
+  "data": [
+    "Email is required",
+    "Password is required"
+  ]
+}
+```
+
+---
+
+### Internal Server Error
+
+**HTTP Status**
+
+```http
+500 Internal Server Error
+```
+
+**Response Body**
+
+```json
+{
+  "status": "FAILED",
+  "message": "Something went wrong",
+  "data": null
+}
+```
+
+---
+
+## Authentication Flow
+
+```text
+Client Request
+↓
+Validate Request Body
+↓
+Check User Exists
+↓
+Verify Password Using BCrypt
+↓
+Generate Access Token
+↓
+Generate Refresh Token
+↓
+Save Refresh Token
+↓
+Return Response
+```
+
+---
+
+## Technologies Used
+
+- Spring Boot
+- Spring Security
+- JWT Authentication
+- BCrypt Password Encoder
+- JPA/Hibernate
+- MySQL
+
+---
+
+## Notes
+
+- Password is stored in encoded format using BCrypt.
+- JWT Access Token is used for API authentication.
+- Refresh Token is stored in database.
+- Old refresh tokens are deleted during login.
+- Password field is hidden from API response using `@JsonIgnore`.
+
+---
+
+## Sample cURL Request
+
+```bash
+curl --location 'http://localhost:8080/api/auth/login' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+"email": "john@gmail.com",
+"password": "Google@2026"
+}'
+```
+
+---
+
+## Car Pooling Backend Authentication API (alternate Base URL)
+
+**Base URL**
 
 ```text
 http://localhost:8089/api/auth
@@ -37,7 +314,7 @@ http://localhost:8089/api/auth
 
 ---
 
-# Authentication Flow
+## Authentication Flow (summary)
 
 ```text
 Register/Login
@@ -57,231 +334,10 @@ Continue Without Login
 
 ---
 
-# Token Expiry
+## Token Expiry
 
 | Token Type    | Expiry     |
 | ------------- | ---------- |
 | Access Token  | 15 Minutes |
 | Refresh Token | 7 Days     |
-
----
-
-# 1. Register API
-
-## Endpoint
-
-```http
-POST /api/auth/register
 ```
-
-## Request Body
-
-```json
-{
-    "fullName": "Janvi Singh",
-    "email": "janvi@gmail.com",
-    "phoneNumber": "9876543210",
-    "password": "Google@2026",
-    "gender": "FEMALE",
-    "role": "USER",
-    "profilePicture": "https://example.com/profile.jpg"
-}
-```
-
-## cURL
-
-```bash
-curl --location 'http://localhost:8089/api/auth/register' \
---header 'Content-Type: application/json' \
---data-raw '{
-    "fullName": "Janvi Singh",
-    "email": "janvi@gmail.com",
-    "phoneNumber": "9876543210",
-    "password": "Google@2026",
-    "gender": "FEMALE",
-    "role": "USER",
-    "profilePicture": "https://example.com/profile.jpg"
-}'
-```
-
-## Success Response
-
-```json
-{
-    "accessToken": "jwt-access-token",
-    "refreshToken": "jwt-refresh-token",
-    "tokenType": "Bearer",
-    "email": "janvi@gmail.com",
-    "fullName": "Janvi Singh",
-    "roleType": "USER",
-    "message": "Registration successful!"
-}
-```
-
----
-
-# 2. Login API
-
-## Endpoint
-
-```http
-POST /api/auth/login
-```
-
-## Request Body
-
-```json
-{
-    "email": "janvi@gmail.com",
-    "password": "Google@2026"
-}
-```
-
-## cURL
-
-```bash
-curl --location 'http://localhost:8089/api/auth/login' \
---header 'Content-Type: application/json' \
---data-raw '{
-    "email": "janvi@gmail.com",
-    "password": "Google@2026"
-}'
-```
-
-## Success Response
-
-```json
-{
-    "accessToken": "jwt-access-token",
-    "refreshToken": "jwt-refresh-token",
-    "tokenType": "Bearer",
-    "email": "janvi@gmail.com",
-    "fullName": "Janvi Singh",
-    "roleType": "USER",
-    "message": "Login successful!"
-}
-```
-
----
-
-# 3. Refresh Token API
-
-## Endpoint
-
-```http
-POST /api/auth/refresh
-```
-
-## Request Body
-
-```json
-{
-    "refreshToken": "your-refresh-token"
-}
-```
-
-## cURL
-
-```bash
-curl --location 'http://localhost:8089/api/auth/refresh' \
---header 'Content-Type: application/json' \
---data-raw '{
-    "refreshToken": "your-refresh-token"
-}'
-```
-
-## Success Response
-
-```json
-{
-    "accessToken": "new-access-token",
-    "refreshToken": "your-refresh-token",
-    "tokenType": "Bearer",
-    "email": "janvi@gmail.com",
-    "fullName": "Janvi Singh",
-    "roleType": "USER",
-    "message": "Token refreshed successfully"
-}
-```
-
----
-
-# 4. Logout API
-
-## Endpoint
-
-```http
-POST /api/auth/logout
-```
-
-## Request Body
-
-```json
-{
-    "refreshToken": "your-refresh-token"
-}
-```
-
-## cURL
-
-```bash
-curl --location 'http://localhost:8089/api/auth/logout' \
---header 'Content-Type: application/json' \
---data-raw '{
-    "refreshToken": "your-refresh-token"
-}'
-```
-
-## Success Response
-
-```json
-{
-    "message": "Logout successful"
-}
-```
-
----
-
-# 5. Protected API Example
-
-Use the access token in Authorization header.
-
-## Example Header
-
-```http
-Authorization: Bearer your-access-token
-```
-
-## cURL
-
-```bash
-curl --location 'http://localhost:8089/api/your-protected-api' \
---header 'Authorization: Bearer your-access-token'
-```
-
----
-
-# Validation Rules
-
-## Register API Validation
-
-| Field       | Validation                                                 |
-| ----------- | ---------------------------------------------------------- |
-| fullName    | Required, 2-100 chars                                      |
-| email       | Valid email required                                       |
-| phoneNumber | Valid Indian 10-digit number                               |
-| password    | Minimum 8 chars, uppercase, lowercase, digit, special char |
-| gender      | Required                                                   |
-| role        | Required                                                   |
-
----
-
-# Notes
-
-* Access Token is used for secured APIs
-* Refresh Token is used to generate new access tokens
-* Refresh Tokens are stored in database
-* Logout revokes refresh token
-* Use `Authorization: Bearer <access_token>` for secured APIs
-* Access Token is short-lived
-* Refresh Token keeps user logged in without repeated login

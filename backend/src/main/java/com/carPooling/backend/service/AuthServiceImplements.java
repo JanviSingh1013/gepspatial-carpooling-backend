@@ -4,6 +4,7 @@ import com.carPooling.backend.dto.GenricDTO;
 import com.carPooling.backend.dto.request.*;
 import com.carPooling.backend.dto.response.AuthResponse;
 import com.carPooling.backend.dto.response.CreatePasswordResponse;
+import com.carPooling.backend.dto.response.LogInResponse;
 import com.carPooling.backend.entity.RefreshToken;
 import com.carPooling.backend.entity.User;
 import com.carPooling.backend.exception.UserAlreadyExistsException;
@@ -15,6 +16,7 @@ import com.carPooling.backend.utils.ValidationUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -109,30 +111,43 @@ public class AuthServiceImplements implements AuthService {
 
     @Override
     @Transactional
-    public AuthResponse login(LoginRequest req) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        req.getEmail(),
-                        req.getPassword()
-                )
-        );
+    public GenricDTO<LogInResponse> login(LoginRequest req) {
 
-        User user = userRepository.findByEmail(
-                        req.getEmail())
-                .orElseThrow(() ->
-                        new UsernameNotFoundException(
-                                "User not found"));
+        Optional<User> optionalUser = userRepository.findByEmail(req.getEmail());
+        if(optionalUser.isEmpty()){
+            return new GenricDTO<>(
+                    StringConstant.UNAUTHORIZED,
+                    "You haven't registered yet, please register first",
+                    null
+            );
+        }
 
-        // Generate tokens
+        User user = optionalUser.get();
+
+        boolean isPasswordCorrect =
+                passwordEncoder.matches(
+                        req.getPassword(),
+                        user.getPassword()
+                );
+
+        if(!isPasswordCorrect){
+            return  new GenricDTO<>(
+                    StringConstant.INVALID_REQUEST,
+                    "Password is incorrect",
+                    null
+            );
+        }
+
+        refreshTokenRepository.deleteByUser(user);
+
         String accessToken =
                 jwtUtil.generateAccessToken(user.getEmail());
 
-        String refreshTokenString =
+        String refreshTokenValue =
                 jwtUtil.generateRefreshToken(user.getEmail());
 
-        // Save refresh token
         RefreshToken refreshToken = RefreshToken.builder()
-                .token(refreshTokenString)
+                .token(refreshTokenValue)
                 .expiryDate(LocalDateTime.now().plusDays(7))
                 .revoked(false)
                 .user(user)
@@ -140,15 +155,17 @@ public class AuthServiceImplements implements AuthService {
 
         refreshTokenRepository.save(refreshToken);
 
-        return AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshTokenString)
-                .tokenType("Bearer")
-                .email(user.getEmail())
-                .fullName(user.getName())
-                .roleType(user.getRole().name())
-                .message("Login successful!")
-                .build();
+        LogInResponse response = new LogInResponse();
+        response.setAccessToken(accessToken);
+        response.setRefreshToken(refreshTokenValue);
+        response.setUser(user);
+
+
+        return new GenricDTO<>(
+                StringConstant.SUCCESS,
+                "Login successful",
+                response
+        );
     }
 
 

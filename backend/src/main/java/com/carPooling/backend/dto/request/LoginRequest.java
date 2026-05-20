@@ -2,12 +2,9 @@ package com.carPooling.backend.dto.request;
 
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
-public class LoginRequest {
-    @NotBlank @Email
-    private String email;
-
-    @NotBlank
-    private String password;
+@EqualsAndHashCode(callSuper = true)
+public class LoginRequest extends BaseAuthRequest {
 }

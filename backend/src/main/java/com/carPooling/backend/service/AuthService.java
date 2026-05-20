@@ -4,11 +4,12 @@ import com.carPooling.backend.dto.GenricDTO;
 import com.carPooling.backend.dto.request.*;
 import com.carPooling.backend.dto.response.AuthResponse;
 import com.carPooling.backend.dto.response.CreatePasswordResponse;
+import com.carPooling.backend.dto.response.LogInResponse;
 
 public interface AuthService {
     AuthResponse register(RegisterRequest req);
 
-    AuthResponse login(LoginRequest req);
+    GenricDTO<LogInResponse>  login(LoginRequest req);
 
     AuthResponse refreshToken(RefreshTokenRequest req);
 
