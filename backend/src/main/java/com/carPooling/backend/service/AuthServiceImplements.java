@@ -11,6 +11,7 @@ import com.carPooling.backend.repository.RefreshTokenRepository;
 import com.carPooling.backend.repository.UserRepository;
 import com.carPooling.backend.security.JwtUtil;
 import com.carPooling.backend.utils.StringConstant;
+import com.carPooling.backend.utils.ValidationUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -18,6 +19,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.ValidationUtils;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -39,42 +41,11 @@ public class AuthServiceImplements implements AuthService {
 
     @Override
     public GenricDTO<CreatePasswordResponse> createPassword(
-            CreatePasswordRequest createPasswordRequest) {
+            CreatePasswordRequest request
+    ) {
 
-        // Email regex
-        String emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$";
-
-        // Password regex
-        // Minimum 8 chars, 1 uppercase, 1 lowercase,
-        // 1 number, 1 special character
-        String passwordRegex =
-                "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$";
-
-        // Validate email
-        if (!createPasswordRequest.getEmail().matches(emailRegex)) {
-
-            return new GenricDTO<>(
-                    StringConstant.INVALID_REQUEST,
-                    "Invalid email format",
-                    null
-            );
-        }
-
-        // Validate password regex
-        if (!createPasswordRequest.getPassword().matches(passwordRegex)) {
-
-            return new GenricDTO<>(
-                    StringConstant.INVALID_REQUEST,
-                    "Password must contain minimum 8 characters, "
-                            + "1 uppercase, 1 lowercase, "
-                            + "1 number and 1 special character",
-                    null
-            );
-        }
-
-        // Validate confirm password
-        if (!createPasswordRequest.getPassword()
-                .equals(createPasswordRequest.getConfirmPassword())) {
+        if (!request.getPassword()
+                .equals(request.getConfirmPassword())) {
 
             return new GenricDTO<>(
                     StringConstant.INVALID_REQUEST,
@@ -84,14 +55,14 @@ public class AuthServiceImplements implements AuthService {
         }
 
         Optional<User> optionalUser =
-                userRepository.findByEmail(createPasswordRequest.getEmail());
+                userRepository.findByEmail(request.getEmail());
 
         User user;
 
         if (optionalUser.isEmpty()) {
 
             user = new User();
-            user.setEmail(createPasswordRequest.getEmail());
+            user.setEmail(request.getEmail());
 
         } else {
 
@@ -99,24 +70,85 @@ public class AuthServiceImplements implements AuthService {
         }
 
         user.setPassword(
-                passwordEncoder.encode(createPasswordRequest.getPassword()));
+                passwordEncoder.encode(request.getPassword())
+        );
 
         userRepository.save(user);
+
+        refreshTokenRepository.deleteByUser(user);
+
+        String accessToken =
+                jwtUtil.generateAccessToken(user.getEmail());
+
+        String refreshTokenValue =
+                jwtUtil.generateRefreshToken(user.getEmail());
+
+        RefreshToken refreshToken = RefreshToken.builder()
+                .token(refreshTokenValue)
+                .expiryDate(LocalDateTime.now().plusDays(7))
+                .revoked(false)
+                .user(user)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
 
         CreatePasswordResponse response =
                 new CreatePasswordResponse();
 
-        response.setAccessToken(
-                jwtUtil.generateAccessToken(user.getEmail()));
-
-        response.setRefreshToken(
-                jwtUtil.generateRefreshToken(user.getEmail()));
+        response.setAccessToken(accessToken);
+        response.setRefreshToken(refreshTokenValue);
 
         return new GenricDTO<>(
                 StringConstant.SUCCESS,
                 "Password created successfully",
                 response
         );
+    }
+
+
+
+    @Override
+    @Transactional
+    public AuthResponse login(LoginRequest req) {
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        req.getEmail(),
+                        req.getPassword()
+                )
+        );
+
+        User user = userRepository.findByEmail(
+                        req.getEmail())
+                .orElseThrow(() ->
+                        new UsernameNotFoundException(
+                                "User not found"));
+
+        // Generate tokens
+        String accessToken =
+                jwtUtil.generateAccessToken(user.getEmail());
+
+        String refreshTokenString =
+                jwtUtil.generateRefreshToken(user.getEmail());
+
+        // Save refresh token
+        RefreshToken refreshToken = RefreshToken.builder()
+                .token(refreshTokenString)
+                .expiryDate(LocalDateTime.now().plusDays(7))
+                .revoked(false)
+                .user(user)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshTokenString)
+                .tokenType("Bearer")
+                .email(user.getEmail())
+                .fullName(user.getName())
+                .roleType(user.getRole().name())
+                .message("Login successful!")
+                .build();
     }
 
 
@@ -177,50 +209,6 @@ public class AuthServiceImplements implements AuthService {
                 .build();
     }
 
-    @Override
-    @Transactional
-    public AuthResponse login(LoginRequest req) {
-
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        req.getEmail(),
-                        req.getPassword()
-                )
-        );
-
-        User user = userRepository.findByEmail(
-                        req.getEmail())
-                .orElseThrow(() ->
-                        new UsernameNotFoundException(
-                                "User not found"));
-
-        // Generate tokens
-        String accessToken =
-                jwtUtil.generateAccessToken(user.getEmail());
-
-        String refreshTokenString =
-                jwtUtil.generateRefreshToken(user.getEmail());
-
-        // Save refresh token
-        RefreshToken refreshToken = RefreshToken.builder()
-                .token(refreshTokenString)
-                .expiryDate(LocalDateTime.now().plusDays(7))
-                .revoked(false)
-                .user(user)
-                .build();
-
-        refreshTokenRepository.save(refreshToken);
-
-        return AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshTokenString)
-                .tokenType("Bearer")
-                .email(user.getEmail())
-                .fullName(user.getName())
-                .roleType(user.getRole().name())
-                .message("Login successful!")
-                .build();
-    }
 
     @Override
     @Transactional

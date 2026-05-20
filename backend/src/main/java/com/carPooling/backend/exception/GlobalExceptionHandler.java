@@ -1,58 +1,57 @@
 package com.carPooling.backend.exception;
 
-
-import com.carPooling.backend.dto.response.ErrorResponse;
-import org.springframework.http.*;
-import org.springframework.security.authentication.BadCredentialsException;
+import com.carPooling.backend.dto.GenricDTO;
+import com.carPooling.backend.utils.StringConstant;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.*;
-import java.time.LocalDateTime;
-import java.util.*;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.List;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidation(
-            MethodArgumentNotValidException ex) {
-        List<String> errors = ex.getBindingResult().getFieldErrors()
-                .stream().map(FieldError::getDefaultMessage)
+    public ResponseEntity<GenricDTO<List<String>>> handleValidationException(
+            MethodArgumentNotValidException ex
+    ) {
+
+        List<String> errors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(FieldError::getDefaultMessage)
                 .collect(Collectors.toList());
-        return ResponseEntity.badRequest().body(
-                new ErrorResponse(400, "Validation Failed", errors, LocalDateTime.now()));
-    }
 
-    @ExceptionHandler(UserAlreadyExistsException.class)
-    public ResponseEntity<ErrorResponse> handleUserExists(
-            UserAlreadyExistsException ex) {
-        return ResponseEntity.status(409).body(
-                new ErrorResponse(409, "Conflict",
-                        List.of(ex.getMessage()), LocalDateTime.now()));
-    }
+        GenricDTO<List<String>> response =
+                new GenricDTO<>(
+                        StringConstant.INVALID_REQUEST,
+                        "credentials format are invalid",
+                        errors
+                );
 
-    @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ErrorResponse> handleBadCredentials(
-            BadCredentialsException ex) {
-        return ResponseEntity.status(401).body(
-                new ErrorResponse(401, "Unauthorized",
-                        List.of("Invalid email or password"), LocalDateTime.now()));
-    }
-
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(
-            ResourceNotFoundException ex) {
-        return ResponseEntity.status(404).body(
-                new ErrorResponse(404, "Not Found",
-                        List.of(ex.getMessage()), LocalDateTime.now()));
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(response);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleAll(Exception ex) {
-        return ResponseEntity.status(500).body(
-                new ErrorResponse(500, "Internal Server Error",
-                        List.of("Something went wrong. Please try again."),
-                        LocalDateTime.now()));
+    public ResponseEntity<GenricDTO<Object>> handleException(
+            Exception ex
+    ) {
+
+        GenricDTO<Object> response =
+                new GenricDTO<>(
+                        StringConstant.FAILED,
+                        ex.getMessage(),
+                        null
+                );
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(response);
     }
 }
