@@ -173,6 +173,100 @@ public class AuthServiceImplements implements AuthService {
 
     @Override
     @Transactional
+    public GenricDTO<RefreshTokenResponse> refreshToken(
+            RefreshTokenRequest request
+    ) {
+
+        String refreshTokenString =
+                request.getRefreshToken();
+
+        Optional<RefreshToken> optionalRefreshToken =
+                refreshTokenRepository.findByToken(
+                        refreshTokenString
+                );
+
+        // Common unauthorized response
+        GenricDTO<RefreshTokenResponse> unauthorizedResponse =
+                new GenricDTO<>(
+                        StringConstant.UNAUTHORIZED,
+                        "Unauthorized Access - try to login/register first",
+                        null
+                );
+
+        // Token not found
+        if (optionalRefreshToken.isEmpty()) {
+            return unauthorizedResponse;
+        }
+
+        RefreshToken storedToken =
+                optionalRefreshToken.get();
+
+        // Token revoked
+        if (storedToken.isRevoked()) {
+            return unauthorizedResponse;
+        }
+
+        // Token expired
+        if (storedToken.getExpiryDate()
+                .isBefore(LocalDateTime.now())) {
+
+            return unauthorizedResponse;
+        }
+
+        // Extract email from JWT
+        String email = jwtUtil.extractEmail(refreshTokenString);
+
+        Optional<User> optionaluser = userRepository.findByEmail(email);
+        if(optionaluser.isEmpty()){
+            return unauthorizedResponse;
+        }
+
+        User user = optionaluser.get();
+
+
+        // Validate JWT
+        if (!jwtUtil.isTokenValid(refreshTokenString, user.getEmail())) {
+            return unauthorizedResponse;
+        }
+
+        // Generate new access token
+        // Generate new access token
+        String newAccessToken =
+                jwtUtil.generateAccessToken(user.getEmail());
+
+        // Generate new refresh token
+        String refreshTokenValue =
+                jwtUtil.generateRefreshToken(user.getEmail());
+
+        // Delete old refresh token
+        refreshTokenRepository.deleteByUser(user);
+
+        // Save new refresh token
+        RefreshToken refreshToken = RefreshToken.builder()
+                .token(refreshTokenValue)
+                .expiryDate(LocalDateTime.now().plusDays(7))
+                .revoked(false)
+                .user(user)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
+
+        // Response
+        RefreshTokenResponse response =
+                new RefreshTokenResponse();
+
+        response.setAccessToken(newAccessToken);
+        response.setRefreshToken(refreshTokenValue);
+
+        return new GenricDTO<>(
+                StringConstant.SUCCESS,
+                "Token refreshed successfully",
+                response
+        );
+    }
+
+    @Override
+    @Transactional
     public AuthResponse register(RegisterRequest req) {
 
         if (userRepository.existsByEmail(req.getEmail())) {
@@ -229,99 +323,7 @@ public class AuthServiceImplements implements AuthService {
     }
 
 
-    @Override
-    @Transactional
-    public GenricDTO<RefreshTokenResponse> refreshToken(
-            RefreshTokenRequest request
-    ) {
 
-        String refreshTokenString =
-                request.getRefreshToken();
-
-        Optional<RefreshToken> optionalRefreshToken =
-                refreshTokenRepository.findByToken(
-                        refreshTokenString
-                );
-
-        // Common unauthorized response
-        GenricDTO<RefreshTokenResponse> unauthorizedResponse =
-                new GenricDTO<>(
-                        StringConstant.UNAUTHORIZED,
-                        "Unauthorized Access - try to login/register first",
-                        null
-                );
-
-        // Token not found
-        if (optionalRefreshToken.isEmpty()) {
-            return unauthorizedResponse;
-        }
-
-        RefreshToken storedToken =
-                optionalRefreshToken.get();
-
-        // Token revoked
-        if (storedToken.isRevoked()) {
-            return unauthorizedResponse;
-        }
-
-        // Token expired
-        if (storedToken.getExpiryDate()
-                .isBefore(LocalDateTime.now())) {
-
-            return unauthorizedResponse;
-        }
-
-        // Extract email from JWT
-        String email = jwtUtil.extractEmail(refreshTokenString);
-
-        Optional<User> optionaluser = userRepository.findByEmail(email);
-        if(optionaluser.isEmpty()){
-            return unauthorizedResponse;
-        }
-
-         User user = optionaluser.get();
-
-
-        // Validate JWT
-        if (!jwtUtil.isTokenValid(refreshTokenString, user.getEmail())) {
-            return unauthorizedResponse;
-        }
-
-        // Generate new access token
-        // Generate new access token
-        String newAccessToken =
-                jwtUtil.generateAccessToken(user.getEmail());
-
-        // Generate new refresh token
-        String refreshTokenValue =
-                jwtUtil.generateRefreshToken(user.getEmail());
-
-        // Delete old refresh token
-        refreshTokenRepository.deleteByUser(user);
-
-        // Save new refresh token
-        RefreshToken refreshToken = RefreshToken.builder()
-                .token(refreshTokenValue)
-                .expiryDate(LocalDateTime.now().plusDays(7))
-                .revoked(false)
-                .user(user)
-                .build();
-
-        refreshTokenRepository.save(refreshToken);
-
-        // Response
-        RefreshTokenResponse response =
-                new RefreshTokenResponse();
-
-        response.setAccessToken(newAccessToken);
-        response.setRefreshToken(refreshTokenValue);
-
-        return new GenricDTO<>(
-                StringConstant.SUCCESS,
-                "Token refreshed successfully",
-                response
-        );
-    }
 
 
     @Override

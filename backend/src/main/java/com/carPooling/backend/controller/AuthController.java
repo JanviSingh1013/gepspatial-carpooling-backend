@@ -86,7 +86,7 @@ public class AuthController {
 
     @PostMapping("/refresh_token")
     public ResponseEntity<GenricDTO<RefreshTokenResponse>> refreshToken(
-            @RequestBody RefreshTokenRequest request
+            @Valid  @RequestBody RefreshTokenRequest request
     ) {
 
         GenricDTO<RefreshTokenResponse> response =

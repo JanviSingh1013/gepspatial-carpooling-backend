@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
         GenricDTO<List<String>> response =
                 new GenricDTO<>(
                         StringConstant.INVALID_REQUEST,
-                        "credentials format are invalid",
+                        "format is invalid",
                         errors
                 );
 
