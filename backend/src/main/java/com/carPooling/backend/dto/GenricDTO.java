@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 @AllArgsConstructor
 public class GenricDTO<T> {
     @JsonProperty("status")
-    private String status;
+    private boolean status;
 
     @JsonProperty("message")
     private String message;

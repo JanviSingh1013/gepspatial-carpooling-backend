@@ -520,3 +520,21 @@ curl --location 'http://localhost:8080/api/auth/refresh_token' \
 | ------------- | ---------- |
 | Access Token  | 15 Minutes |
 | Refresh Token | 7 Days     |
+
+
+
+
+
+# Spring Exception Handling Flow
+
+```
+Request → Controller → Service
+                     ↓
+              Exception thrown
+                     ↓
+          DispatcherServlet catches it
+                     ↓
+     @RestControllerAdvice handler runs
+                     ↓
+           HTTP Response sent back
+```

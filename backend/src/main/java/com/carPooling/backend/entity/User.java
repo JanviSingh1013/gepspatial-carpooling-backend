@@ -1,63 +1,66 @@
 package com.carPooling.backend.entity;
 
 import com.carPooling.backend.enums.Gender;
-import com.carPooling.backend.enums.Role;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users",
+        indexes = {
+                @Index(name = "idx_user_phone", columnList = "phoneNumber"),
+                @Index(name = "idx_user_email", columnList = "email")
+        })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User {
+@EntityListeners(AuditingEntityListener.class)
+public class User extends BaseEntity  {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
-    @Column(nullable = true, length = 100)
+    // BASIC INFO
+    @Column(length = 100)
     private String name;
 
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    @Column(nullable = true, unique = true, length = 20)
+    @Column(unique = true, length = 20)
     private String phoneNumber;
 
+    private String profilePicture;
+
+    private LocalDate dob;
+
+    @Enumerated(EnumType.STRING)
+    private Gender gender;
+
+    // AUTH
     @Column(nullable = false)
     @JsonIgnore
     private String password;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = true)
-    private Gender gender;
+    private boolean isPhoneVerified = false;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = true)
-    private Role role;
+    // PROFILE EXTRA (optional but useful)
+    private String collegeCompanyName;
 
-    @Column(columnDefinition = "LONGTEXT")
-    private String profilePicture;
+    private String emergencyContactName;
 
-    @CreationTimestamp
-    @Column(updatable = true)
-    @JsonIgnore
-    private LocalDateTime createdAt;
+    @Column(length = 20)
+    private String emergencyContactNumber;
 
-    @UpdateTimestamp
-    @JsonIgnore
-    private LocalDateTime updatedAt;
-
-    @JsonIgnore
-    private LocalDateTime deletedAt;
-
+    private String city;
 
     @Override
     public String toString() {
@@ -66,13 +69,8 @@ public class User {
                 ", name='" + name + '\'' +
                 ", email='" + email + '\'' +
                 ", phoneNumber='" + phoneNumber + '\'' +
-                ", password='" + password + '\'' +
                 ", gender=" + gender +
-                ", role=" + role +
-                ", profilePicture='" + profilePicture + '\'' +
-                ", createdAt=" + createdAt +
-                ", updatedAt=" + updatedAt +
-                ", deletedAt=" + deletedAt +
+                ", city='" + city + '\'' +
                 '}';
     }
 }

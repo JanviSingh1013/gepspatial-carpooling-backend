@@ -1,7 +1,9 @@
 package com.carPooling.backend.exception;
 
 import com.carPooling.backend.dto.GenricDTO;
-import com.carPooling.backend.utils.StringConstant;
+import com.carPooling.backend.exception.custom_exception.ConflictException;
+import com.carPooling.backend.exception.custom_exception.InvalidRequestException;
+import com.carPooling.backend.exception.custom_exception.UnauthorizedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -15,11 +17,41 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<GenricDTO<List<String>>> handleValidationException(
-            MethodArgumentNotValidException ex
-    ) {
+    @ExceptionHandler(InvalidRequestException.class)
+    public ResponseEntity<GenricDTO<Void>> handleInvalidRequest(InvalidRequestException ex) {
+        GenricDTO<Void> response = new GenricDTO<>();
+        response.setStatus(false);
+        response.setMessage(ex.getMessage());
 
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<GenricDTO<Void>> handleUnauthorized(UnauthorizedException ex) {
+        GenricDTO<Void> response = new GenricDTO<>();
+        response.setStatus(false);
+        response.setMessage(ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(response);
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<GenricDTO<Void>> handleConflict(ConflictException ex) {
+        GenricDTO<Void> response = new GenricDTO<>();
+        response.setStatus(false);
+        response.setMessage(ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<GenricDTO<List<String>>> handleValidationException(MethodArgumentNotValidException ex) {
         List<String> errors = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
@@ -28,7 +60,7 @@ public class GlobalExceptionHandler {
 
         GenricDTO<List<String>> response =
                 new GenricDTO<>(
-                        StringConstant.INVALID_REQUEST,
+                        false,
                         "format is invalid",
                         errors
                 );
@@ -39,16 +71,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<GenricDTO<Object>> handleException(
-            Exception ex
-    ) {
-
-        GenricDTO<Object> response =
-                new GenricDTO<>(
-                        StringConstant.FAILED,
-                        ex.getMessage(),
-                        null
-                );
+    public ResponseEntity<GenricDTO<Void>> handleGeneric(Exception ex) {
+        GenricDTO<Void> response = new GenricDTO<>();
+        response.setStatus(false);
+        response.setMessage("Internal server error");
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)

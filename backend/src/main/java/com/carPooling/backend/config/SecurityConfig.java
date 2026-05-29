@@ -1,11 +1,14 @@
 package com.carPooling.backend.config;
 
-import com.carPooling.backend.security.*;
+import com.carPooling.backend.security.CustomUserDetailsService;
+import com.carPooling.backend.security.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.*;
-import org.springframework.security.authentication.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.authentication.configuration.*;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;

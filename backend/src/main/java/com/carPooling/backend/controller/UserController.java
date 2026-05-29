@@ -1,20 +1,30 @@
 package com.carPooling.backend.controller;
 
+import com.carPooling.backend.dto.GenricDTO;
+import com.carPooling.backend.dto.request.UpdateProfileRequest;
+import com.carPooling.backend.dto.response.UpdateProfileResponse;
 import com.carPooling.backend.dto.response.UserProfileResponse;
 import com.carPooling.backend.entity.User;
 import com.carPooling.backend.repository.UserRepository;
+import com.carPooling.backend.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/user")
 @RequiredArgsConstructor
 public class UserController {
 
     private final UserRepository userRepository;
+    private final UserService userService;
 
     @GetMapping("/profile")
     public ResponseEntity<UserProfileResponse> getProfile(
@@ -29,9 +39,24 @@ public class UserController {
                 .email(user.getEmail())
                 .phoneNumber(user.getPhoneNumber())
                 .gender(user.getGender().name())
-                .roleType(user.getRole().name())
                 .profileImageBase64(user.getProfilePicture())
                 .createdAt(user.getCreatedAt())
                 .build());
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<GenricDTO<UpdateProfileResponse>> register(
+            @Valid @RequestBody UpdateProfileRequest request
+    ) {
+        log.debug("Updating profile for user: {}", request.toString());
+        UpdateProfileResponse response = userService.updateProfile(request);
+        return ResponseEntity.ok(
+                new GenricDTO<>(
+                        true,
+                        "Profile updated successfully",
+                        response
+                )
+                );
+
     }
 }
