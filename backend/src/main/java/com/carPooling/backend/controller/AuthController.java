@@ -23,6 +23,11 @@ public class AuthController {
     }
 
 
+    @GetMapping("/get_health")
+    public String healthCheck() {
+        return "I am on server";
+    }
+
     @PostMapping("/password")
     public ResponseEntity<GenricDTO<CreatePasswordResponse>> createPassword(
             @Valid @RequestBody CreatePasswordRequest request
