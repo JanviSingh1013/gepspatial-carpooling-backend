@@ -12,11 +12,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "users",
-        indexes = {
-                @Index(name = "idx_user_phone", columnList = "phoneNumber"),
-                @Index(name = "idx_user_email", columnList = "email")
-        })
+@Table(name = "users")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

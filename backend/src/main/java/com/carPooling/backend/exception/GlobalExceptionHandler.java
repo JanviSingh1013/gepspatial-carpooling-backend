@@ -3,7 +3,11 @@ package com.carPooling.backend.exception;
 import com.carPooling.backend.dto.GenricDTO;
 import com.carPooling.backend.exception.custom_exception.ConflictException;
 import com.carPooling.backend.exception.custom_exception.InvalidRequestException;
+import com.carPooling.backend.exception.custom_exception.InvalidTokenException;
 import com.carPooling.backend.exception.custom_exception.UnauthorizedException;
+import com.carPooling.backend.utils.StringConstant;
+import io.jsonwebtoken.ExpiredJwtException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -14,6 +18,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -32,6 +37,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<GenricDTO<Void>> handleUnauthorized(UnauthorizedException ex) {
         GenricDTO<Void> response = new GenricDTO<>();
         response.setStatus(false);
+        response.setMessage(ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(response);
+    }
+
+
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<GenricDTO<Void>> invalidTokenException(InvalidTokenException ex) {
+        GenricDTO<Void> response = new GenricDTO<>();
+        response.setStatus(false);
+        response.setError(StringConstant.REFRESH_TOKEN_EXPIRED);
         response.setMessage(ex.getMessage());
 
         return ResponseEntity
@@ -72,9 +90,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<GenricDTO<Void>> handleGeneric(Exception ex) {
+
+        log.debug(
+                "An unexpected error occurred: {}",
+                ex.getMessage(),
+                ex
+        );
         GenricDTO<Void> response = new GenricDTO<>();
         response.setStatus(false);
-        response.setMessage("Internal server error");
+        response.setMessage(ex.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)

@@ -1,4 +1,4 @@
-package com.carPooling.backend.dto.response;
+package com.carPooling.backend.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

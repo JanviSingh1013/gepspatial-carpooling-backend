@@ -1,5 +1,6 @@
 package com.carPooling.backend.dto.response;
 
+import com.carPooling.backend.dto.BaseAuthResponse;
 import com.carPooling.backend.entity.User;
 import lombok.AllArgsConstructor;
 import lombok.Data;

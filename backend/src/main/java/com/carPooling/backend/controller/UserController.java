@@ -1,6 +1,7 @@
 package com.carPooling.backend.controller;
 
 import com.carPooling.backend.dto.GenricDTO;
+import com.carPooling.backend.dto.request.ProfileRequest;
 import com.carPooling.backend.dto.request.UpdateProfileRequest;
 import com.carPooling.backend.dto.response.UpdateProfileResponse;
 import com.carPooling.backend.dto.response.UserProfileResponse;
@@ -46,10 +47,16 @@ public class UserController {
 
     @PutMapping("/profile")
     public ResponseEntity<GenricDTO<UpdateProfileResponse>> register(
-            @Valid @RequestBody UpdateProfileRequest request
+            @Valid @RequestBody ProfileRequest request
     ) {
         log.debug("Updating profile for user: {}", request.toString());
         UpdateProfileResponse response = userService.updateProfile(request);
+
+        log.debug(
+                "Profile updated successfully for user: {}. Response: {}",
+                request.getEmail(),
+                response.toString()
+        );
         return ResponseEntity.ok(
                 new GenricDTO<>(
                         true,

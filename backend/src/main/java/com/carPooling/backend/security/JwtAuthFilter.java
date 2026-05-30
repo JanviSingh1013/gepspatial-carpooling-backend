@@ -1,5 +1,8 @@
 package com.carPooling.backend.security;
 
+import com.carPooling.backend.utils.StringConstant;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import lombok.RequiredArgsConstructor;
@@ -24,30 +27,52 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String authHeader = req.getHeader("Authorization");
-
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             chain.doFilter(req, res);
             return;
         }
 
         String jwt = authHeader.substring(7);
-        String email = jwtUtil.extractEmail(jwt);
 
-        if (email != null &&
-                SecurityContextHolder.getContext().getAuthentication() == null) {
+        try {
+            String email = jwtUtil.extractEmail(jwt);
 
-            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-
-            if (jwtUtil.isTokenValid(jwt, userDetails.getUsername())) {
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails, null, userDetails.getAuthorities());
-                authToken.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(req));
-
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+            if (email != null &&
+                    SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                if (jwtUtil.isTokenValid(jwt, userDetails.getUsername())) {
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails, null, userDetails.getAuthorities());
+                    authToken.setDetails(
+                            new WebAuthenticationDetailsSource().buildDetails(req));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
+
+        } catch (ExpiredJwtException e) {
+            sendError(res, HttpServletResponse.SC_UNAUTHORIZED, StringConstant.ACCESS_TOKEN_EXPIRED,
+                    "JWT token has expired. Please refresh your token.");
+            return;                          // ← don't continue the filter chain
+
+        } catch (JwtException e) {           // covers tampered / malformed / bad sig
+            sendError(res, HttpServletResponse.SC_UNAUTHORIZED, "TOKEN_INVALID",
+                    "Invalid JWT token.");
+            return;
         }
+
         chain.doFilter(req, res);
     }
+
+    private void sendError(HttpServletResponse res,
+                           int status, String error, String message)
+            throws IOException {
+        res.setStatus(status);
+        res.setContentType("application/json");
+        res.getWriter().write("""
+        {"status": false, "error": "%s", "message": "%s"}
+        """.formatted(error, message));
+    }
+
+
 }

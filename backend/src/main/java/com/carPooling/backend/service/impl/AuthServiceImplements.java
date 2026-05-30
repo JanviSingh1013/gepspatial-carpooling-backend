@@ -1,14 +1,13 @@
 package com.carPooling.backend.service.impl;
 
-import com.carPooling.backend.dto.GenricDTO;
 import com.carPooling.backend.dto.request.*;
 import com.carPooling.backend.dto.response.CreatePasswordResponse;
 import com.carPooling.backend.dto.response.LogInResponse;
 import com.carPooling.backend.dto.response.RefreshTokenResponse;
-import com.carPooling.backend.dto.response.UpdateProfileResponse;
 import com.carPooling.backend.entity.RefreshToken;
 import com.carPooling.backend.entity.User;
 import com.carPooling.backend.exception.custom_exception.InvalidRequestException;
+import com.carPooling.backend.exception.custom_exception.InvalidTokenException;
 import com.carPooling.backend.exception.custom_exception.UnauthorizedException;
 import com.carPooling.backend.repository.RefreshTokenRepository;
 import com.carPooling.backend.repository.UserRepository;
@@ -18,8 +17,6 @@ import com.carPooling.backend.utils.StringConstant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,7 +38,6 @@ public class AuthServiceImplements implements AuthService {
     private final AuthenticationManager authenticationManager;
 
     private final RefreshTokenRepository refreshTokenRepository;
-
 
     @Override
     public CreatePasswordResponse createPassword(CreatePasswordRequest request) {
@@ -128,70 +124,50 @@ public class AuthServiceImplements implements AuthService {
 
         String refreshTokenString = request.getRefreshToken();
 
-        log.debug(
-                "Received refresh token request with token: {}",
-                refreshTokenString
-        );
+        // 1. Find in DB
+        RefreshToken storedToken = refreshTokenRepository.findByToken(refreshTokenString)
+                .orElseThrow(() -> new InvalidTokenException(
+                        "Unauthorized Access - try to login/register first"));
 
-        Optional<RefreshToken> optionalRefreshToken =
-                refreshTokenRepository.findByToken(refreshTokenString);
-
-        // Token not found
-        if (optionalRefreshToken.isEmpty()) {
-            throw new UnauthorizedException("Unauthorized Access - try to login/register first");
-        }
-
-        RefreshToken storedToken = optionalRefreshToken.get();
-
-        // Token revoked
+        // 2. Check revoked
         if (storedToken.isRevoked()) {
-            throw new UnauthorizedException("Unauthorized Access - try to login/register first");
+            throw new InvalidTokenException(
+                    "Unauthorized Access - try to login/register first");
         }
 
-        // Token expired
+        // 3. Check expiry from DB (not from JWT)
         if (storedToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            throw new UnauthorizedException("Unauthorized Access - try to login/register first");
+            refreshTokenRepository.delete(storedToken); // cleanup expired token
+            throw new InvalidTokenException(
+                    "Session expired. Please log in again.");
         }
 
-        // Extract email from JWT
-        String email = jwtUtil.extractEmail(refreshTokenString);
+        // 4. Get user from stored token (no JWT parsing needed)
+        User user = storedToken.getUser();
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new UnauthorizedException("Unauthorized Access - try to login/register first")
-                );
-
-        // Validate JWT
-        if (!jwtUtil.isTokenValid(refreshTokenString, user.getEmail())) {
-            throw new UnauthorizedException("Unauthorized Access - try to login/register first");
-        }
-
-        // Generate new access token
+        // 5. Generate new tokens
         String newAccessToken = jwtUtil.generateAccessToken(user.getEmail());
-
-        // Generate new refresh token
         String newRefreshToken = jwtUtil.generateRefreshToken(user.getEmail());
 
-        // Delete old refresh token
-        refreshTokenRepository.deleteByUser(user);
+        // 6. Rotate refresh token — delete old, save new
+        refreshTokenRepository.delete(storedToken);
 
-        // Save new refresh token
         RefreshToken refreshToken = RefreshToken.builder()
                 .token(newRefreshToken)
-                .expiryDate(LocalDateTime.now().plusDays(7))
+                .expiryDate(LocalDateTime.now().plusSeconds(120)) // match JwtUtil value
                 .revoked(false)
                 .user(user)
                 .build();
 
         refreshTokenRepository.save(refreshToken);
 
-        // Response DTO
+        // 7. Return response
         RefreshTokenResponse response = new RefreshTokenResponse();
         response.setAccessToken(newAccessToken);
         response.setRefreshToken(newRefreshToken);
-
         return response;
     }
+
 
     @Override
     @Transactional
@@ -210,8 +186,4 @@ public class AuthServiceImplements implements AuthService {
         // Delete refresh token
         refreshTokenRepository.deleteById(refreshToken.getId());
     }
-
-
-
-
 }
