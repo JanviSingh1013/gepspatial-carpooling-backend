@@ -23,7 +23,7 @@ public class AuthController {
     }
 
 
-    @GetMapping("/get_health")
+    @GetMapping("/health")
     public String healthCheck() {
         return "I am on server";
     }
