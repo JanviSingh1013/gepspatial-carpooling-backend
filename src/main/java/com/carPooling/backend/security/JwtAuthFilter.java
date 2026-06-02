@@ -3,15 +3,19 @@ package com.carPooling.backend.security;
 import com.carPooling.backend.utils.StringConstant;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
-import jakarta.servlet.*;
-import jakarta.servlet.http.*;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+
 import java.io.IOException;
 
 @Component
@@ -55,6 +59,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     "JWT token has expired. Please refresh your token.");
             return;                          // ← don't continue the filter chain
 
+        } catch (UsernameNotFoundException e) {
+            logger.debug(
+                    "User not found for email extracted from JWT: {}. Error: {}" + e.getMessage()
+            );
+            sendError(
+                    res,
+                    HttpServletResponse.SC_UNAUTHORIZED,
+                    "",
+                    "unauthorized access."
+            );
+            return;
+
         } catch (JwtException e) {           // covers tampered / malformed / bad sig
             sendError(res, HttpServletResponse.SC_UNAUTHORIZED, "TOKEN_INVALID",
                     "Invalid JWT token.");
@@ -70,8 +86,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         res.setStatus(status);
         res.setContentType("application/json");
         res.getWriter().write("""
-        {"status": false, "error": "%s", "message": "%s"}
-        """.formatted(error, message));
+                {"status": false, "error": "%s", "message": "%s", "data": null}
+                """.formatted(error, message)
+        );
     }
 
 
