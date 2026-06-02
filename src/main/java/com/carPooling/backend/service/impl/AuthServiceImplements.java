@@ -167,23 +167,4 @@ public class AuthServiceImplements implements AuthService {
         response.setRefreshToken(newRefreshToken);
         return response;
     }
-
-
-    @Override
-    @Transactional
-    public void logout(LogoutRequest request) {
-
-        String refreshTokenString = request.getRefreshToken();
-
-        RefreshToken refreshToken = refreshTokenRepository
-                .findByToken(refreshTokenString)
-                .orElseThrow(() ->
-                        new UnauthorizedException(
-                                "Unauthorized Access - try to login/register first"
-                        )
-                );
-
-        // Delete refresh token
-        refreshTokenRepository.deleteById(refreshToken.getId());
-    }
 }

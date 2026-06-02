@@ -76,20 +76,4 @@ public class AuthController {
                 )
         );
     }
-
-
-    @PostMapping("/logout")
-    public ResponseEntity<GenricDTO<Void>> logout(
-            @Valid @RequestBody LogoutRequest request
-    ) {
-        authService.logout(request);
-
-        return ResponseEntity.ok(
-                new GenricDTO<>(
-                        true,
-                        "Logout successful",
-                        null
-                )
-        );
-    }
 }

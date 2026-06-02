@@ -66,4 +66,18 @@ public class UserController {
                 );
 
     }
+
+
+    @PostMapping("/logout")
+    public ResponseEntity<GenricDTO<Void>> logout() {
+        userService.logout();
+
+        return ResponseEntity.ok(
+                new GenricDTO<>(
+                        true,
+                        "Logout successful",
+                        null
+                )
+        );
+    }
 }

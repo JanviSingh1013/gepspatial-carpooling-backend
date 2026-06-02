@@ -6,5 +6,7 @@ import lombok.NoArgsConstructor;
 
 @Data
 @AllArgsConstructor
-public class LogoutRequest extends RefreshTokenRequest {
+@NoArgsConstructor
+public class LogoutRequest {
+    String accessToken;
 }

@@ -1,10 +1,14 @@
 package com.carPooling.backend.service.impl;
 
+import com.carPooling.backend.dto.request.LogoutRequest;
 import com.carPooling.backend.dto.request.ProfileRequest;
 import com.carPooling.backend.dto.response.UpdateProfileResponse;
+import com.carPooling.backend.entity.RefreshToken;
 import com.carPooling.backend.entity.User;
 import com.carPooling.backend.exception.custom_exception.ConflictException;
+import com.carPooling.backend.exception.custom_exception.InvalidTokenException;
 import com.carPooling.backend.exception.custom_exception.UnauthorizedException;
+import com.carPooling.backend.repository.RefreshTokenRepository;
 import com.carPooling.backend.repository.UserRepository;
 import com.carPooling.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Slf4j                          // ← Lombok generates: private static final Logger log = ... Simple Logging Facade
@@ -22,6 +27,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class UserServiceImplementation implements UserService {
     private final UserRepository userRepository;
+    private  final RefreshTokenRepository refreshTokenRepository;
 
     @Override
     @Transactional
@@ -77,5 +83,23 @@ public class UserServiceImplementation implements UserService {
                 existingUser.getEmergencyContactName(),
                 existingUser.getEmergencyContactNumber()
         );
+    }
+
+
+    @Override
+    @Transactional
+    public void logout() {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new UnauthorizedException(
+                                "Unauthorized Access"
+                        )
+                );
+
+        refreshTokenRepository.deleteByUser(user);
     }
 }
